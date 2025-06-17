@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secretary Kim - Local AI Assistant</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap');
+        
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --accent-color: #3b82f6;
+            --light-gray: #f3f4f6;
+            --dark-gray: #6b7280;
+            --error-red: #ef4444;
+            --typing-color: #d1d5db;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #111827;
+        }
+        
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 90vh;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .chat-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 18px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: var(--light-gray);
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            max-width: 85%;
+            padding: 14px 18px;
+            border-radius: 18px;
+            line-height: 1.5;
+            position: relative;
+            font-size: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            opacity: 0;
+            transform: translateY(10px);
+            animation: messageAppear 0.3s ease-out forwards;
+        }
+        
+        @keyframes messageAppear {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-message {
+            background-color: var(--primary-color);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .ai-message {
+            background-color: white;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .chat-input-container {
+            display: flex;
+            padding: 16px;
+            background-color: white;
+            border-top: 1px solid #e5e7eb;
+            align-items: center;
+        }
+        
+        #user-input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            outline: none;
+            font-size: 15px;
+            transition: all 0.3s;
+            background-color: #f9fafb;
+        }
+        
+        #user-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        
+        #send-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            margin-left: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+        
+        .voice-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            margin-right: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+        
+        .voice-btn.active {
+            background-color: var(--error-red);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            padding: 12px 18px;
+            background-color: white;
+            border-radius: 18px;
+            margin-bottom: 20px;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #e5e7eb;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--typing-color);
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+        
+        @keyframes typingAnimation {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                background-color: var(--typing-color);
+            }
+            30% {
+                transform: translateY(-6px);
+                background-color: var(--dark-gray);
+            }
+        }
+        
+        .streaming-text {
+            display: inline-block;
+            overflow: hidden;
+            border-right: 2px solid var(--primary-color);
+            white-space: nowrap;
+            animation: typingCursor 0.75s step-end infinite;
+        }
+        
+        .voice-animation {
+            display: flex;
+            align-items: flex-end;
+            height: 24px;
+            gap: 3px;
+        }
+        
+        .voice-bar {
+            width: 4px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
+            animation: voiceBarAnimation 1.5s infinite ease-in-out;
+        }
+        
+        .model-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .progress-bar {
+            width: 80%;
+            max-width: 300px;
+            height: 20px;
+            background-color: #e5e7eb;
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="model-loading" id="model-loading">
+            <h3>Loading AI Model...</h3>
+            <p>This may take a few minutes (model will cache for future visits)</p>
+            <div class="progress-bar">
+                <div class="progress" id="progress-bar"></div>
+            </div>
+            <p id="progress-text">Initializing: 0%</p>
+            <p id="error-text" style="color: var(--error-red);"></p>
+        </div>
+        
+        <div class="chat-header">
+            Secretary Kim - Local AI
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-container">
+            <button class="voice-btn" id="voice-button" title="Voice Input">
+                <span>🎙</span>
+            </button>
+            <input type="text" id="user-input" placeholder="Ask me anything..." autocomplete="off" disabled>
+            <button id="send-button" disabled>➤</button>
+        </div>
+    </div>
+
+    <!-- WebLLM Library -->
+    <script src="https://unpkg.com/@mlc-ai/web-llm@0.2.26/dist/web-llm.js"></script>
+    
+    <script>
+        // DOM Elements
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const voiceButton = document.getElementById('voice-button');
+        const modelLoading = document.getElementById('model-loading');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const errorText = document.getElementById('error-text');
+        
+        // WebLLM Variables
+        let chat;
+        // Smaller model for better compatibility
+        const MODEL = "RedPajama-INCITE-Chat-3B-v1-q4f32_1"; // ~2.5GB
+        // Alternative models:
+        // "Llama-2-7b-chat-hf-q4f32_1" (~4GB)
+        // "Mistral-7B-Instruct-v0.1-q4f32_1" (~4.5GB)
+        
+        // Conversation History
+        let conversationHistory = [];
+        let isModelReady = false;
+        
+        // Initialize WebLLM
+        async function initWebLLM() {
+            try {
+                // Check if WebGPU is available
+                if (!('gpu' in navigator)) {
+                    throw new Error("WebGPU not supported. Please use Chrome/Edge 113+ or enable WebGPU flags.");
+                }
+                
+                // Create chat instance
+                chat = new webllm.ChatModule();
+                
+                // Set progress callback
+                chat.setInitProgressCallback((report) => {
+                    const progress = Math.floor(report.progress * 100);
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${report.text} - ${progress}%`;
+                    
+                    // Handle verbose messages
+                    if (report.text.includes("Fetching")) {
+                        progressText.textContent = `Downloading model... ${progress}%`;
+                    } else if (report.text.includes("Loading")) {
+                        progressText.textContent = `Loading model... ${progress}%`;
+                    }
+                });
+                
+                // Load the model
+                await chat.reload(MODEL, undefined, {
+                    model_list: await webllm.getModelList()
+                });
+                
+                // Model is ready
+                isModelReady = true;
+                modelLoading.style.display = 'none';
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                
+                // Send welcome message
+                const welcomeMsg = "Hello! I'm Secretary Kim, your local AI assistant. I'm now fully loaded and ready to help. What would you like to discuss?";
+                addMessage('Secretary Kim', welcomeMsg);
+                speak(welcomeMsg);
+                
+            } catch (error) {
+                console.error("Model loading failed:", error);
+                errorText.textContent = `Error: ${error.message}`;
+                progressText.textContent = "Failed to load model";
+                
+                // Show recovery options
+                if (error.message.includes("WebGPU")) {
+                    errorText.innerHTML += `<br><br>Try using Chrome/Edge 113+ or enable WebGPU:<br>
+                    <small>1. Chrome: Enable chrome://flags/#enable-unsafe-webgpu<br>
+                    2. Edge: Enable edge://flags/#enable-unsafe-webgpu</small>`;
+                }
+            }
+        }
+        
+        // Initialize the model when page loads
+        window.addEventListener('load', () => {
+            // First check if webllm is loaded
+            if (typeof webllm === 'undefined') {
+                errorText.textContent = "Failed to load WebLLM library. Please check your internet connection.";
+                return;
+            }
+            initWebLLM();
+        });
+        
+        // Speech Recognition Setup
+        const setupSpeechRecognition = () => {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                voiceButton.style.display = 'none';
+                return null;
+            }
+            
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            return recognition;
+        };
+        
+        const recognition = setupSpeechRecognition();
+        let isListening = false;
+        
+        // Event Listeners
+        voiceButton.addEventListener('click', toggleVoiceInput);
+        userInput.addEventListener('keypress', (e) => e.key === 'Enter' && sendMessage());
+        sendButton.addEventListener('click', sendMessage);
+        
+        // Voice Input Toggle
+        function toggleVoiceInput() {
+            if (!recognition) {
+                addMessage('System', 'Voice input not supported in this browser');
+                return;
+            }
+            
+            if (!isListening) {
+                recognition.start();
+                voiceButton.classList.add('active');
+                voiceButton.innerHTML = '<div class="voice-animation"><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div></div>';
+                isListening = true;
+            } else {
+                recognition.stop();
+            }
+        }
+        
+        if (recognition) {
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                sendMessage();
+            };
+            
+            recognition.onend = () => {
+                isListening = false;
+                voiceButton.classList.remove('active');
+                voiceButton.innerHTML = '<span>🎙</span>';
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error', event.error);
+                addMessage('System', `Voice input error: ${event.error}`);
+            };
+        }
+        
+        // Add Message to Chat
+        function addMessage(sender, text, isTyping = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender === 'You' ? 'user-message' : 'ai-message');
+            
+            if (isTyping) {
+                messageDiv.classList.add('typing-indicator');
+                messageDiv.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+            } else {
+                messageDiv.textContent = text;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return messageDiv;
+        }
+        
+        // Generate Response with WebLLM
+        async function generateResponse(message) {
+            if (!isModelReady) {
+                return "The AI model is still loading. Please wait...";
+            }
+            
+            try {
+                // Create prompt with conversation history
+                const prompt = webllm.getPromptTemplate(MODEL).format({
+                    "system": "You are Secretary Kim, a helpful AI assistant. Respond conversationally and helpfully.",
+                    "user": message,
+                    "history": conversationHistory.map(msg => 
+                        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+                    ).join('\n')
+                });
+                
+                // Generate response
+                const response = await chat.generate(prompt, {
+                    temperature: 0.7,
+                    max_gen_len: 500
+                });
+                
+                return response;
+            } catch (error) {
+                console.error("Generation error:", error);
+                return "I encountered an error processing your request. Please try again.";
+            }
+        }
+        
+        // Send Message
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message || !isModelReady) return;
+            
+            userInput.value = '';
+            addMessage('You', message);
+            conversationHistory.push({ role: 'user', content: message });
+            
+            const typingIndicator = addMessage('Secretary Kim', '', true);
+            
+            try {
+                const response = await generateResponse(message);
+                typingIndicator.remove();
+                addMessage('Secretary Kim', response);
+                conversationHistory.push({ role: 'assistant', content: response });
+                speak(response);
+            } catch (error) {
+                typingIndicator.remove();
+                const errorMessage = "Sorry, I encountered an error. Please try again.";
+                addMessage('Secretary Kim', errorMessage);
+                speak(errorMessage);
+            }
+        }
+        
+        // Text-to-Speech
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.95;
+                utterance.pitch = 1.05;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+    </script>
+</body>
+</html>
